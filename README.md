@@ -1,97 +1,222 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# 🎬 CineTrackarr
 
-# Getting Started
+CineTrackarr is a sleek React Native companion app designed for users of **Radarr** and **Sonarr**, providing a modern mobile interface to browse, search, and manage your media library effortlessly.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+This app bridges the gap between powerful automation tools and a clean, intuitive mobile experience.
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+# 🚀 About
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Managing media servers from a desktop works — but it isn’t always convenient.
 
-```sh
-# Using npm
-npm start
+CineTrackarr delivers:
 
-# OR using Yarn
-yarn start
-```
+✔ A fast, mobile-first UI  
+✔ Easy browsing of movies & TV shows  
+✔ Trending discovery via TMDB  
+✔ Seamless Radarr & Sonarr integration  
+✔ Built-in update mechanism  
 
-## Step 2: Build and run your app
+Built with **React Native**, focused on performance, simplicity, and usability.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+---
 
-### Android
+# ✨ Features
 
-```sh
-# Using npm
-npm run android
+## 🎥 Movies (Radarr)
 
-# OR using Yarn
-yarn android
-```
+• Browse your Radarr library  
+• View monitored / unmonitored status  
+• Smart TMDB search  
+• Detect already-added movies  
+• Add movies directly  
+• Trigger movie searches  
 
-### iOS
+---
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## 📺 TV Shows (Sonarr)
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+• Browse your Sonarr library  
+• Lookup & search series  
+• Detect already-added shows  
+• View seasons & episodes  
+• Trigger season searches  
+• Trigger episode searches  
 
-```sh
-bundle install
-```
+---
 
-Then, and every time you update your native dependencies, run:
+## 🔥 Trending Content (TMDB)
 
-```sh
-bundle exec pod install
-```
+• Discover trending movies  
+• Discover trending TV shows  
+• Dynamic filtering  
+• Clean poster-based browsing  
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+---
 
-```sh
-# Using npm
-npm run ios
+## ⚙ Smart Settings
 
-# OR using Yarn
-yarn ios
-```
+• Toggle Radarr / Sonarr / Trending  
+• Test server connections  
+• Persistent configuration  
+• Smooth animated UI  
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## ⬆ App Updater
 
-## Step 3: Modify your app
+• GitHub release-based updates  
+• In-app update detection  
+• APK download & install  
+• Download progress tracking  
 
-Now that you have successfully run the app, let's make changes!
+---
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+# 📦 Tech Stack
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+• React Native  
+• Axios  
+• TMDB API  
+• Radarr API  
+• Sonarr API  
+• GitHub Releases  
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+---
 
-## Congratulations! :tada:
+# 🛠 Setup & Usage
 
-You've successfully run and modified your React Native App. :partying_face:
+---
 
-### Now what?
+## ✅ 1. Install the App
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+Download the latest APK from:
 
-# Troubleshooting
+👉 **GitHub Releases**
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Install on your Android device.
 
-# Learn More
+---
 
-To learn more about React Native, take a look at the following resources:
+## ✅ 2. Configure Settings
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Open **Settings Screen**
+
+Enable desired services:
+
+✔ Radarr  
+✔ Sonarr  
+✔ Trending Content  
+
+Provide:
+
+• Server URL  
+• API Key  
+• TMDB API Key (for Trending)
+
+---
+
+## ✅ 3. Test Connections
+
+Use built-in test buttons to verify:
+
+✔ Server availability  
+✔ API validity  
+
+---
+
+## ✅ 4. Browse Library
+
+Navigate:
+
+• Dashboard  
+• Movies  
+• TV Shows  
+• Trending  
+
+Tap posters to view details.
+
+---
+
+## ✅ 5. Manage Media
+
+From Details Screen:
+
+✔ Add movies  
+✔ Trigger searches  
+✔ Download seasons  
+✔ Download episodes  
+
+---
+
+## ✅ 6. Updates
+
+CineTrackarr checks GitHub releases.
+
+Manual check available in **Settings → Check for Updates**
+
+---
+
+# 🔐 Requirements
+
+To use CineTrackarr:
+
+✔ Running Radarr instance  
+✔ Running Sonarr instance  
+✔ Valid API keys  
+✔ Internet connection (for TMDB / updates)
+
+---
+
+# ⚠ Disclaimer
+
+CineTrackarr is a **companion interface**.
+
+It does **not** host, stream, or distribute media.
+
+All operations are performed via your own Radarr / Sonarr servers.
+
+---
+
+# 👨‍💻 Developer
+
+**Rahul Sharma**
+
+🌐 https://rahulsharmahere.com  
+🐙 https://github.com/rahulsharmahere  
+
+---
+
+# 📜 License
+
+This project is provided for educational and personal use. This project is licensed under the GNU GPL v3 License.
+
+You are free to use, modify, and distribute this software, but any derivative work must also be open source under GPL.
+
+---
+
+# 💡 Future Roadmap
+
+• Library statistics  
+• Download progress tracking  
+• Watch history  
+• Media health dashboard  
+• UI refinements  
+
+---
+
+# ⭐ Support
+
+If you like CineTrackarr:
+
+✔ Star the repo  
+✔ Report issues  
+✔ Suggest features
+
+Enjoying my work?? why dont you give a star to this project?? Also if you can then do consider to Buy Me A Coffee.
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/rahulsharmahere)
+
+---
+
+🔥 Enjoy your media, minus the friction.
