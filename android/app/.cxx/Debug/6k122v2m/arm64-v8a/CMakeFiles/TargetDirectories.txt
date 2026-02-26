@@ -1,0 +1,3 @@
+C:/Users/Rahul/Desktop/folder/CineTrackarr/android/app/.cxx/Debug/6k122v2m/arm64-v8a/CMakeFiles/appmodules.dir
+C:/Users/Rahul/Desktop/folder/CineTrackarr/android/app/.cxx/Debug/6k122v2m/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/Rahul/Desktop/folder/CineTrackarr/android/app/.cxx/Debug/6k122v2m/arm64-v8a/CMakeFiles/rebuild_cache.dir

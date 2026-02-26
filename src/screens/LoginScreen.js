@@ -14,18 +14,41 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   LayoutAnimation,
-  UIManager
+  UIManager,
+  TouchableOpacity
 } from "react-native";
+
+import Clipboard from "@react-native-clipboard/clipboard";
 import EncryptedStorage from "react-native-encrypted-storage";
 import axios from "axios";
-import Footer from "../components/Footer"; // import your footer
+import Footer from "../components/Footer";
+import { useSettings } from "../context/SettingsContext";
 
-// Enable LayoutAnimation on Android
+const InputWithPaste = ({ value, onChangeText, placeholder, onPaste, secure }) => (
+  <View style={styles.inputRow}>
+    <TextInput
+      style={styles.input}
+      placeholder={placeholder}
+      placeholderTextColor="#666"
+      value={value}
+      onChangeText={onChangeText}
+      autoCapitalize="none"
+      secureTextEntry={secure}
+    />
+    <TouchableOpacity style={styles.pasteButton} onPress={onPaste}>
+      <Text style={styles.pasteText}>Paste</Text>
+    </TouchableOpacity>
+  </View>
+);
+
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 export default function LoginScreen({ navigation }) {
+
+  const { updateSettings } = useSettings();
+
   const [useRadarr, setUseRadarr] = useState(false);
   const [useSonarr, setUseSonarr] = useState(false);
 
@@ -34,19 +57,17 @@ export default function LoginScreen({ navigation }) {
   const [sonarrUrl, setSonarrUrl] = useState("");
   const [sonarrApiKey, setSonarrApiKey] = useState("");
 
-  const [radarrError, setRadarrError] = useState("");
-  const [sonarrError, setSonarrError] = useState("");
-
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
         const creds = await EncryptedStorage.getItem("cineTrackarrCreds");
-        if (creds) navigation.replace("Dashboard");
-      } catch (err) {
-        console.log("No saved credentials", err);
-      }
+
+        if (creds) {
+          navigation.replace("Dashboard");
+        }
+      } catch {}
     })();
   }, []);
 
@@ -54,80 +75,75 @@ export default function LoginScreen({ navigation }) {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setUseRadarr(prev => !prev);
   };
+
   const toggleSonarr = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setUseSonarr(prev => !prev);
   };
 
-  const validateService = async (url, apiKey, serviceName, setError) => {
-    if (!url || !apiKey) {
-      setError("");
-      return false;
-    }
+  const pasteFromClipboard = async (setter) => {
+    const text = await Clipboard.getString();
+    if (text) setter(text.trim());
+  };
+
+  const validateService = async (url, apiKey, serviceName) => {
+
+    console.log(`🚀 Testing ${serviceName}`);
+
     try {
       const fullUrl = `${url.replace(/\/$/, "")}/api/v3/system/status`;
-      const res = await axios.get(fullUrl, { headers: { "X-Api-Key": apiKey } });
 
-      if (!res.data?.appName || res.data.appName.toLowerCase() !== serviceName.toLowerCase()) {
-        setError(`This does not appear to be a valid ${serviceName} instance`);
-        return false;
-      }
+      console.log("➡ URL:", fullUrl);
 
-      setError("");
-      return true;
-    } catch {
-      setError(`Unable to connect to ${serviceName}`);
-      return false;
+      const res = await axios.get(fullUrl, {
+        headers: { "X-Api-Key": apiKey },
+        timeout: 5000
+      });
+
+      console.log("✅ SUCCESS", res.data);
+
+      Alert.alert(`${serviceName} Success`);
+
+    } catch (err) {
+
+      console.log("❌ ERROR", err.message);
+
+      Alert.alert(`${serviceName} Failed`, err.message);
     }
   };
 
   const handleConnect = async () => {
-    if (!useRadarr && !useSonarr) {
-      Alert.alert("Error", "Enable at least one service");
-      return;
-    }
 
-    if ((useRadarr && (!radarrUrl || !radarrApiKey)) ||
-        (useSonarr && (!sonarrUrl || !sonarrApiKey))) {
-      Alert.alert("Error", "Please fill all enabled service fields");
+    if (!useRadarr && !useSonarr) {
+      Alert.alert("Enable at least one service");
       return;
     }
 
     setLoading(true);
 
     try {
-      let radarrValid = true;
-      let sonarrValid = true;
 
-      if (useRadarr) {
-        radarrValid = await validateService(radarrUrl, radarrApiKey, "Radarr", setRadarrError);
-      }
-      if (useSonarr) {
-        sonarrValid = await validateService(sonarrUrl, sonarrApiKey, "Sonarr", setSonarrError);
-      }
-
-      if ((useRadarr && !radarrValid) || (useSonarr && !sonarrValid)) {
-        Alert.alert("Error", "Please fix the highlighted errors before connecting");
-        setLoading(false);
-        return;
-      }
+      const newSettings = {
+        useRadarr,
+        radarrUrl,
+        radarrApiKey,
+        useSonarr,
+        sonarrUrl,
+        sonarrApiKey
+      };
 
       await EncryptedStorage.setItem(
         "cineTrackarrCreds",
-        JSON.stringify({
-          useRadarr,
-          radarrUrl,
-          radarrApiKey,
-          useSonarr,
-          sonarrUrl,
-          sonarrApiKey
-        })
+        JSON.stringify(newSettings)
       );
 
+      // ✅ CRITICAL FIX — Update Context
+      await updateSettings(newSettings);
+
       navigation.replace("Dashboard");
+
     } catch (err) {
-      console.error(err);
-      Alert.alert("Connection Failed", err.message);
+      Alert.alert("Save Failed", err.message);
     } finally {
       setLoading(false);
     }
@@ -137,88 +153,89 @@ export default function LoginScreen({ navigation }) {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: "#000" }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+
             <Text style={styles.title}>CineTrackarr</Text>
 
-            {/* Radarr Toggle */}
             <View style={styles.toggleRow}>
               <Text style={styles.label}>Enable Radarr</Text>
               <Switch value={useRadarr} onValueChange={toggleRadarr} />
             </View>
 
             {useRadarr && (
-              <View style={styles.animatedContainer}>
+              <>
                 <Text style={styles.label}>Radarr URL</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="http://192.168.x.x:7878"
+                <InputWithPaste
                   value={radarrUrl}
                   onChangeText={setRadarrUrl}
-                  onBlur={() => validateService(radarrUrl, radarrApiKey, "Radarr", setRadarrError)}
-                  autoCapitalize="none"
+                  placeholder="http://192.168.x.x:7878"
+                  onPaste={() => pasteFromClipboard(setRadarrUrl)}
                 />
-                {radarrError ? <Text style={styles.errorText}>{radarrError}</Text> : null}
 
                 <Text style={styles.label}>Radarr API Key</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Radarr API Key"
+                <InputWithPaste
                   value={radarrApiKey}
                   onChangeText={setRadarrApiKey}
-                  onBlur={() => validateService(radarrUrl, radarrApiKey, "Radarr", setRadarrError)}
-                  autoCapitalize="none"
-                  secureTextEntry
+                  placeholder="Radarr API Key"
+                  secure
+                  onPaste={() => pasteFromClipboard(setRadarrApiKey)}
                 />
-              </View>
+
+                <View style={styles.buttonSpacing}>
+                  <Button
+                    title="Test Radarr"
+                    onPress={() => validateService(radarrUrl, radarrApiKey, "Radarr")}
+                  />
+                </View>
+              </>
             )}
 
-            {/* Sonarr Toggle */}
             <View style={styles.toggleRow}>
               <Text style={styles.label}>Enable Sonarr</Text>
               <Switch value={useSonarr} onValueChange={toggleSonarr} />
             </View>
 
             {useSonarr && (
-              <View style={styles.animatedContainer}>
+              <>
                 <Text style={styles.label}>Sonarr URL</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="http://192.168.x.x:8989"
+                <InputWithPaste
                   value={sonarrUrl}
                   onChangeText={setSonarrUrl}
-                  onBlur={() => validateService(sonarrUrl, sonarrApiKey, "Sonarr", setSonarrError)}
-                  autoCapitalize="none"
+                  placeholder="http://192.168.x.x:8989"
+                  onPaste={() => pasteFromClipboard(setSonarrUrl)}
                 />
-                {sonarrError ? <Text style={styles.errorText}>{sonarrError}</Text> : null}
 
                 <Text style={styles.label}>Sonarr API Key</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Sonarr API Key"
+                <InputWithPaste
                   value={sonarrApiKey}
                   onChangeText={setSonarrApiKey}
-                  onBlur={() => validateService(sonarrUrl, sonarrApiKey, "Sonarr", setSonarrError)}
-                  autoCapitalize="none"
-                  secureTextEntry
+                  placeholder="Sonarr API Key"
+                  secure
+                  onPaste={() => pasteFromClipboard(setSonarrApiKey)}
                 />
-              </View>
+
+                <View style={styles.buttonSpacing}>
+                  <Button
+                    title="Test Sonarr"
+                    onPress={() => validateService(sonarrUrl, sonarrApiKey, "Sonarr")}
+                  />
+                </View>
+              </>
             )}
 
-            {loading ? (
-              <ActivityIndicator size="large" color="#e50914" style={{ marginTop: 20 }} />
-            ) : (
-              <Button title="Connect" onPress={handleConnect} color="#e50914" />
-            )}
+            {/* ✅ EXTRA MARGIN HERE */}
+            <View style={styles.connectSpacing}>
+              {loading
+                ? <ActivityIndicator size="large" color="#e50914" />
+                : <Button title="Connect" onPress={handleConnect} color="#e50914" />
+              }
+            </View>
+
           </ScrollView>
 
-          {/* Footer at the bottom */}
           <Footer />
         </View>
       </TouchableWithoutFeedback>
@@ -227,15 +244,9 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "space-between",
-    backgroundColor: "#000",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
+  container: { flex: 1, justifyContent: "space-between", backgroundColor: "#000" },
+  scrollContent: { flexGrow: 1, padding: 20 },
+
   title: {
     fontSize: 32,
     fontWeight: "bold",
@@ -243,28 +254,41 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 40
   },
-  label: {
-    color: "#fff",
-    marginBottom: 5,
-    marginTop: 15
+
+  label: { color: "#fff", marginBottom: 6, marginTop: 15 },
+
+  toggleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
   },
+
+  inputRow: { flexDirection: "row", alignItems: "center" },
+
   input: {
+    flex: 1,
     backgroundColor: "#222",
     color: "#fff",
     padding: 10,
     borderRadius: 8
   },
-  toggleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+
+  pasteButton: {
+    marginLeft: 10,
+    backgroundColor: "#333",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8
+  },
+
+  pasteText: { color: "#fff" },
+
+  buttonSpacing: {
+    marginTop: 15,
+    marginBottom: 25
+  },
+
+  connectSpacing: {
     marginTop: 10
-  },
-  animatedContainer: {
-    marginBottom: 10
-  },
-  errorText: {
-    color: "#ff4d4d",
-    marginTop: 5
   }
 });

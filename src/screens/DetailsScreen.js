@@ -7,11 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 
 import axios from "axios";
 import Icon from "react-native-vector-icons/Ionicons";
+import Toast from "react-native-toast-message";
+import { trackEvent } from "../services/matomo";
 
 import AppScreenWrapper from "../components/AppScreenWrapper";
 import { useSettings } from "../context/SettingsContext";
@@ -22,8 +23,8 @@ export default function DetailsScreen({ route, navigation }) {
   const { settings } = useSettings();
 
   const [details, setDetails] = useState(null);
-  const [episodes, setEpisodes] = useState([]);              // ✅ TV ONLY
-  const [expandedSeasons, setExpandedSeasons] = useState({}); // ✅ TV ONLY
+  const [episodes, setEpisodes] = useState([]);
+  const [expandedSeasons, setExpandedSeasons] = useState({});
 
   const [loading, setLoading] = useState(true);
 
@@ -41,12 +42,33 @@ export default function DetailsScreen({ route, navigation }) {
     fetchRootFolders();
   }, []);
 
+  const showToast = (type, message) => {
+    Toast.show({
+      type,
+      text1: message,
+      position: "bottom",
+      visibilityTime: 1800,
+    });
+  };
+
+  /* ---------------- FETCH PROFILES ---------------- */
+
   const fetchProfiles = async () => {
     try {
-      const resp = await axios.get(
-        `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/qualityprofile`,
-        { headers: { "X-Api-Key": settings.radarrApiKey } }
-      );
+
+      const url =
+        type === "movie"
+          ? `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/qualityprofile`
+          : `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/qualityprofile`;
+
+      const apiKey =
+        type === "movie"
+          ? settings.radarrApiKey
+          : settings.sonarrApiKey;
+
+      const resp = await axios.get(url, {
+        headers: { "X-Api-Key": apiKey },
+      });
 
       setProfiles(resp.data);
 
@@ -55,16 +77,28 @@ export default function DetailsScreen({ route, navigation }) {
       }
 
     } catch (err) {
-      console.error("Profiles Fetch Error:", err);
+      console.log("Profiles Fetch Error:", err.response?.data || err.message);
     }
   };
 
+  /* ---------------- FETCH ROOT FOLDERS ---------------- */
+
   const fetchRootFolders = async () => {
     try {
-      const resp = await axios.get(
-        `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/rootfolder`,
-        { headers: { "X-Api-Key": settings.radarrApiKey } }
-      );
+
+      const url =
+        type === "movie"
+          ? `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/rootfolder`
+          : `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/rootfolder`;
+
+      const apiKey =
+        type === "movie"
+          ? settings.radarrApiKey
+          : settings.sonarrApiKey;
+
+      const resp = await axios.get(url, {
+        headers: { "X-Api-Key": apiKey },
+      });
 
       setRootFolders(resp.data);
 
@@ -73,9 +107,11 @@ export default function DetailsScreen({ route, navigation }) {
       }
 
     } catch (err) {
-      console.error("Root Folder Error:", err);
+      console.log("Root Folder Error:", err.response?.data || err.message);
     }
   };
+
+  /* ---------------- FETCH DETAILS ---------------- */
 
   const fetchDetails = async () => {
 
@@ -83,7 +119,6 @@ export default function DetailsScreen({ route, navigation }) {
 
     try {
 
-      // ✅ MOVIE LOGIC (UNTOUCHED 👌🔥)
       if (type === "movie") {
 
         if (item.added) {
@@ -97,9 +132,7 @@ export default function DetailsScreen({ route, navigation }) {
             (m) => m.tmdbId === item.tmdbId
           );
 
-          if (!realMovie) {
-            throw new Error("Movie not found in Radarr");
-          }
+          if (!realMovie) throw new Error("Movie not found");
 
           const detailsResp = await axios.get(
             `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/movie/${realMovie.id}`,
@@ -126,7 +159,6 @@ export default function DetailsScreen({ route, navigation }) {
         }
       }
 
-      // ✅ TV LOGIC (ADDITIVE FIXED 😏🔥)
       else {
 
         if (item.added) {
@@ -140,9 +172,7 @@ export default function DetailsScreen({ route, navigation }) {
             (s) => s.tvdbId === item.tvdbId
           );
 
-          if (!realSeries) {
-            throw new Error("Series not found in Sonarr");
-          }
+          if (!realSeries) throw new Error("Series not found");
 
           const detailsResp = await axios.get(
             `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/series/${realSeries.id}`,
@@ -170,32 +200,47 @@ export default function DetailsScreen({ route, navigation }) {
             }
           );
 
-          const matchedSeries = resp.data.find(
-            (s) => s.tvdbId === item.tvdbId
-          );
-
-          setDetails(matchedSeries || resp.data[0]);
+          setDetails(resp.data[0]);
         }
       }
 
     } catch (err) {
-      console.error("Details Fetch Error:", err);
-      Alert.alert("Error", "Failed to fetch details");
+      console.log("Details Fetch Error:", err.response?.data || err.message);
+      showToast("error", "Failed to fetch details");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ TV INTERACTION LOGIC
-  const toggleSeason = (seasonNumber) => {
-    setExpandedSeasons(prev => ({
-      ...prev,
-      [seasonNumber]: !prev[seasonNumber],
-    }));
+  /* ---------------- ACTIONS ---------------- */
+
+  const searchMovie = async () => {
+    try {
+      await axios.post(
+        `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/command`,
+        { name: "MoviesSearch", movieIds: [details.id] },
+        { headers: { "X-Api-Key": settings.radarrApiKey } }
+      );
+
+      showToast("success", "Search started");
+      trackEvent("Movie", "Search", details.title);
+
+    } catch (err) {
+      console.log("Search Error:", err.response?.data);
+      showToast("error", "Search failed");
+    }
   };
 
-  const downloadSeason = async (seasonNumber) => {
+  const toggleSeason = (seasonNumber) => {
+  setExpandedSeasons(prev => ({
+    ...prev,
+    [seasonNumber]: !prev[seasonNumber],
+  }));
+};
+
+const downloadSeason = async (seasonNumber) => {
     try {
+
       await axios.post(
         `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/command`,
         {
@@ -206,15 +251,18 @@ export default function DetailsScreen({ route, navigation }) {
         { headers: { "X-Api-Key": settings.sonarrApiKey } }
       );
 
-      Alert.alert("Success", `Season ${seasonNumber} search started`);
+      showToast("success", `Season ${seasonNumber} search started`);
+      trackEvent("Series", "SeasonSearch", `${details.title} S${seasonNumber}`);
 
-    } catch {
-      Alert.alert("Error", "Season search failed");
+    } catch (err) {
+      console.log("Season Search Error:", err.response?.data);
+      showToast("error", "Season search failed");
     }
   };
 
   const downloadEpisode = async (episodeId) => {
     try {
+
       await axios.post(
         `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/command`,
         {
@@ -224,40 +272,61 @@ export default function DetailsScreen({ route, navigation }) {
         { headers: { "X-Api-Key": settings.sonarrApiKey } }
       );
 
-      Alert.alert("Success", "Episode search started");
+      showToast("success", "Episode search started");
+      trackEvent("Series", "EpisodeSearch", ep?.title || "Episode");
 
-    } catch {
-      Alert.alert("Error", "Episode search failed");
+    } catch (err) {
+      console.log("Episode Search Error:", err.response?.data);
+      showToast("error", "Episode search failed");
     }
   };
 
-  // ✅ MOVIE ACTIONS (UNTOUCHED 👌🔥)
-  const searchMovie = async () => {
 
-    if (!details?.id) return;
+const deleteMovie = async () => {
+  try {
 
-    try {
-      await axios.post(
-        `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/command`,
-        { name: "MoviesSearch", movieIds: [details.id] },
-        { headers: { "X-Api-Key": settings.radarrApiKey } }
-      );
+    await axios.delete(
+      `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/movie/${details.id}`,
+      {
+        headers: { "X-Api-Key": settings.radarrApiKey },
+        data: { deleteFiles: false }, // safer default
+      }
+    );
 
-      Alert.alert("Success", "Search started");
+    showToast("success", "Movie Deleted");
+    navigation.goBack();
 
-    } catch {
-      Alert.alert("Error", "Search failed");
-    }
-  };
+  } catch (err) {
+    console.log("Delete Movie Error:", err.response?.data);
+    showToast("error", "Failed to delete movie");
+    trackEvent("Movie", "Delete", details.title);
+  }
+};
+
+const deleteSeries = async () => {
+  try {
+
+    await axios.delete(
+      `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/series/${details.id}`,
+      {
+        headers: { "X-Api-Key": settings.sonarrApiKey },
+        data: { deleteFiles: false },
+      }
+    );
+
+    showToast("success", "Series Deleted");
+    trackEvent("Series", "Delete", details.title);
+    navigation.goBack();
+
+  } catch (err) {
+    console.log("Delete Series Error:", err.response?.data);
+    showToast("error", "Failed to delete series");
+  }
+};
 
   const addMovie = async () => {
-
-    if (!selectedProfile || !selectedRootFolder) {
-      Alert.alert("Error", "Select profile & root folder");
-      return;
-    }
-
     try {
+
       await axios.post(
         `${settings.radarrUrl.replace(/\/$/, "")}/api/v3/movie`,
         {
@@ -266,17 +335,44 @@ export default function DetailsScreen({ route, navigation }) {
           qualityProfileId: selectedProfile.id,
           tmdbId: details.tmdbId,
           rootFolderPath: selectedRootFolder.path,
-          monitored: monitored,
+          monitored,
           addOptions: { searchForMovie: true },
         },
         { headers: { "X-Api-Key": settings.radarrApiKey } }
       );
 
-      Alert.alert("Success", "Movie Added");
+      showToast("success", "Movie Added");
+      trackEvent("Movie", "Add", details.title);
 
     } catch (err) {
       console.log("RADARR ERROR:", err.response?.data);
-      Alert.alert("Error", "Failed to add movie");
+      showToast("error", "Failed to add movie");
+    }
+  };
+
+  const addSeries = async () => {
+    try {
+
+      await axios.post(
+        `${settings.sonarrUrl.replace(/\/$/, "")}/api/v3/series`,
+        {
+          title: details.title,
+          tvdbId: details.tvdbId,
+          qualityProfileId: selectedProfile.id,
+          rootFolderPath: selectedRootFolder.path,
+          monitored,
+          addOptions: { searchForMissingEpisodes: true },
+          seasons: details.seasons,
+        },
+        { headers: { "X-Api-Key": settings.sonarrApiKey } }
+      );
+
+      showToast("success", "Series Added");
+      trackEvent("Series", "Add", details.title);
+
+    } catch (err) {
+      console.log("SONARR ERROR:", err.response?.data);
+      showToast("error", "Failed to add series");
     }
   };
 
@@ -294,17 +390,13 @@ export default function DetailsScreen({ route, navigation }) {
 
         <View style={styles.detailsContainer}>
 
-          <Image
-            source={{
-              uri: details.images?.[0]?.remoteUrl || item.remotePoster,
-            }}
-            style={styles.poster}
-          />
+          <Image source={{ uri: details.images?.[0]?.remoteUrl || item.remotePoster }} style={styles.poster} />
 
           <Text style={styles.title}>{details.title}</Text>
           <Text style={styles.shortDetail}>{details.overview}</Text>
 
-          {type === "movie" && details.movieFile && (
+
+{type === "movie" && details.movieFile && (
   <View style={styles.fileInfoBox}>
 
     <Text style={styles.fileInfoTitle}>Downloaded File</Text>
@@ -332,44 +424,44 @@ export default function DetailsScreen({ route, navigation }) {
   </View>
 )}
 
-          {/* ✅ MOVIE SELECTORS (UNTOUCHED 👌🔥) */}
+          {/* ✅ MOVIE SELECTORS RESTORED 🔥 */}
           {type === "movie" && !item.added && (
             <>
               <View style={styles.selectorContainer}>
                 <Text style={styles.selectorTitle}>Quality Profile</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {profiles.map(profile => {
-                    const active = selectedProfile?.id === profile.id;
-                    return (
-                      <TouchableOpacity
-                        key={profile.id}
-                        style={[styles.profileChip, active && styles.activeChip]}
-                        onPress={() => setSelectedProfile(profile)}
-                      >
-                        <Text style={styles.profileText}>{profile.name}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {profiles.map(profile => (
+                    <TouchableOpacity
+                      key={profile.id}
+                      style={[
+                        styles.profileChip,
+                        selectedProfile?.id === profile.id && styles.activeChip,
+                      ]}
+                      onPress={() => setSelectedProfile(profile)}
+                    >
+                      <Text style={styles.profileText}>{profile.name}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </ScrollView>
               </View>
 
               <View style={styles.selectorContainer}>
                 <Text style={styles.selectorTitle}>Root Folder</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {rootFolders.map(folder => {
-                    const active = selectedRootFolder?.id === folder.id;
-                    return (
-                      <TouchableOpacity
-                        key={folder.id}
-                        style={[styles.profileChip, active && styles.activeChip]}
-                        onPress={() => setSelectedRootFolder(folder)}
-                      >
-                        <Text style={styles.profileText}>
-                          {folder.path.split("/").pop()}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {rootFolders.map(folder => (
+                    <TouchableOpacity
+                      key={folder.id}
+                      style={[
+                        styles.profileChip,
+                        selectedRootFolder?.id === folder.id && styles.activeChip,
+                      ]}
+                      onPress={() => setSelectedRootFolder(folder)}
+                    >
+                      <Text style={styles.profileText}>
+                        {folder.path.split("/").pop()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </ScrollView>
               </View>
 
@@ -386,59 +478,87 @@ export default function DetailsScreen({ route, navigation }) {
             </>
           )}
 
-          {/* ✅ TV SEASONS UI 😏🔥 */}
-          {type !== "movie" && details.seasons?.map(season => {
+          {/* ✅ TV SEASONS UI 🔥 */}
+{type !== "movie" && details.seasons?.map(season => {
 
-            const seasonEpisodes = episodes.filter(
-              ep => ep.seasonNumber === season.seasonNumber
-            );
+  const seasonEpisodes = episodes.filter(
+    ep => ep.seasonNumber === season.seasonNumber
+  );
 
-            const expanded = expandedSeasons[season.seasonNumber];
+  const expanded = expandedSeasons[season.seasonNumber];
 
-            return (
-              <View key={season.seasonNumber} style={styles.seasonBox}>
+  return (
+    <View key={season.seasonNumber} style={styles.seasonBox}>
 
-                <View style={styles.seasonHeader}>
+      <View style={styles.seasonHeader}>
 
-                  <TouchableOpacity onPress={() => toggleSeason(season.seasonNumber)}>
-                    <Text style={styles.seasonTitle}>
-                      {expanded ? "▼" : "▶"} Season {season.seasonNumber}
-                    </Text>
-                  </TouchableOpacity>
+        <TouchableOpacity onPress={() => toggleSeason(season.seasonNumber)}>
+          <Text style={styles.seasonTitle}>
+            {expanded ? "▼" : "▶"} Season {season.seasonNumber}
+          </Text>
+        </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => downloadSeason(season.seasonNumber)}>
-                    <Icon name="download-outline" size={22} color="#e50914" />
-                  </TouchableOpacity>
+        <TouchableOpacity onPress={() => downloadSeason(season.seasonNumber)}>
+          <Icon name="download-outline" size={22} color="#e50914" />
+        </TouchableOpacity>
 
-                </View>
+      </View>
 
-                {expanded && seasonEpisodes.map(ep => (
-                  <View key={ep.id} style={styles.episodeRow}>
+      {expanded && seasonEpisodes.map(ep => (
+        <View key={ep.id} style={styles.episodeRow}>
 
-                    <Text style={styles.fileText}>
-                      {ep.episodeNumber}. {ep.title}
-                    </Text>
+          <View style={{ flex: 1 }}>
 
-                    <TouchableOpacity onPress={() => downloadEpisode(ep.id)}>
-                      <Icon name="cloud-download-outline" size={20} color="#fff" />
-                    </TouchableOpacity>
+            <Text style={styles.fileText}>
+              {ep.episodeNumber}. {ep.title || "Episode"}
+            </Text>
 
-                  </View>
-                ))}
+            {ep.hasFile && (
+              <Text style={styles.downloadedText}>
+                Downloaded • {ep.episodeFile?.quality?.quality?.name}
+              </Text>
+            )}
 
-              </View>
-            );
-          })}
+          </View>
+
+          <TouchableOpacity onPress={() => downloadEpisode(ep.id)}>
+            <Icon name="cloud-download-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+
+        </View>
+      ))}
+
+    </View>
+  );
+})}
 
           {item.added ? (
-            <TouchableOpacity style={styles.button} onPress={searchMovie}>
-              <Text style={styles.buttonText}>Search</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.button} onPress={addMovie}>
-              <Text style={styles.buttonText}>Add</Text>
-            </TouchableOpacity>
-          )}
+
+  <>
+    <TouchableOpacity
+      style={styles.deleteButton}
+      onPress={type === "movie" ? deleteMovie : deleteSeries}
+    >
+      <Text style={styles.buttonText}>Delete</Text>
+    </TouchableOpacity>
+
+    {type === "movie" && !details.movieFile && (
+      <TouchableOpacity style={styles.button} onPress={searchMovie}>
+        <Text style={styles.buttonText}>Search</Text>
+      </TouchableOpacity>
+    )}
+  </>
+
+) : (
+
+  <TouchableOpacity
+    style={styles.button}
+    onPress={type === "movie" ? addMovie : addSeries}
+  >
+    <Text style={styles.buttonText}>Add</Text>
+  </TouchableOpacity>
+
+)}
 
         </View>
 
@@ -553,4 +673,19 @@ fileInfoText: {
   fontSize: 13,
   marginTop: 2,
 },
+downloadedText: {
+  color: "#46d369",
+  fontSize: 11,
+  marginTop: 2,
+},
+
+deleteButton: {
+  marginTop: 20,
+  backgroundColor: "#333",
+  padding: 10,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#e50914",
+},
+
 });

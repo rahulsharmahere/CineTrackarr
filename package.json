@@ -1,6 +1,6 @@
 {
   "name": "CineTrackarr",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@gorhom/portal": "^1.0.14",
+    "@react-native-async-storage/async-storage": "^1.21.0",
+    "@react-native-clipboard/clipboard": "^1.16.3",
     "@react-native/new-app-screen": "0.81.4",
     "@react-navigation/bottom-tabs": "^7.14.0",
     "@react-navigation/drawer": "^7.5.8",
@@ -20,6 +22,7 @@
     "lucide-react-native": "^0.544.0",
     "react": "19.1.0",
     "react-native": "0.81.4",
+    "react-native-device-info": "^15.0.2",
     "react-native-encrypted-storage": "^4.0.3",
     "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",

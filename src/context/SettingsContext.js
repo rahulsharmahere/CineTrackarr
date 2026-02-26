@@ -4,6 +4,7 @@ import EncryptedStorage from "react-native-encrypted-storage";
 const SettingsContext = createContext();
 
 export const SettingsProvider = ({ children }) => {
+
   const [settings, setSettings] = useState({
     useRadarr: false,
     useSonarr: false,
@@ -22,29 +23,32 @@ export const SettingsProvider = ({ children }) => {
   const loadSettings = async () => {
     try {
       const credsString = await EncryptedStorage.getItem("cineTrackarrCreds");
+
       if (credsString) {
-        setSettings(JSON.parse(credsString));
+        const parsed = JSON.parse(credsString);
+        setSettings(parsed);
       }
+
     } catch (err) {
       console.log("Settings load error", err);
     }
   };
 
-  const updateSettings = async (newValues) => {
-    try {
-      setSettings(prev => {
-        const updated = { ...prev, ...newValues };
+  // ✅ IMPORTANT: NOT async
+  const updateSettings = (newValues) => {
 
-        EncryptedStorage.setItem(
-          "cineTrackarrCreds",
-          JSON.stringify(updated)
-        );
+    setSettings(prev => {
 
-        return updated;
-      });
-    } catch (err) {
-      console.log("Settings update error", err);
-    }
+      const updated = { ...prev, ...newValues };
+
+      // ✅ Persist WITHOUT blocking UI
+      EncryptedStorage.setItem(
+        "cineTrackarrCreds",
+        JSON.stringify(updated)
+      ).catch(err => console.log("Storage error", err));
+
+      return updated;
+    });
   };
 
   return (

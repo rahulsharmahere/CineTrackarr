@@ -18,7 +18,6 @@ CineTrackarr delivers:
 ✔ Seamless Radarr & Sonarr integration  
 ✔ Built-in update mechanism  
 
-Built with **React Native**, focused on performance, simplicity, and usability.
 
 ---
 
